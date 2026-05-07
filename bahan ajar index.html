@@ -1,0 +1,2105 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MolecuQuest — Game Edukasi Bentuk Molekul</title>
+<style>
+  /* =============================================
+     VARIABEL & RESET GLOBAL
+     ============================================= */
+  :root {
+    --biru-gelap: #0a2463;
+    --biru-tengah: #1e5fbe;
+    --biru-terang: #3d9be9;
+    --biru-muda: #cce4f7;
+    --biru-pucat: #eaf4fd;
+    --putih: #ffffff;
+    --abu: #f0f4f8;
+    --teks-gelap: #0d1b40;
+    --teks-abu: #5a6e8c;
+    --hijau: #10b981;
+    --merah: #ef4444;
+    --kuning: #f59e0b;
+    --shadow: 0 4px 24px rgba(10,36,99,0.13);
+    --radius: 18px;
+    --radius-sm: 10px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+    background: #4a5568;
+    min-height: 100vh;
+    color: var(--teks-gelap);
+    overflow-x: hidden;
+    display: flex;
+    justify-content: center;
+    padding: 30px 0;
+  }
+
+  /* Bintang/partikel dekoratif di background A4 */
+  #app::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image:
+      radial-gradient(circle, rgba(255,255,255,0.15) 1px, transparent 1px),
+      radial-gradient(circle, rgba(255,255,255,0.08) 1px, transparent 1px);
+    background-size: 50px 50px, 80px 80px;
+    background-position: 0 0, 25px 25px;
+    pointer-events: none;
+    z-index: 0;
+    border-radius: 0;
+  }
+
+  /* =============================================
+     WRAPPER UTAMA
+     ============================================= */
+  /* Ukuran A4: 210mm × 297mm = 794px × 1123px pada 96dpi */
+  #app {
+    position: relative;
+    z-index: 1;
+    width: 794px;
+    min-height: 1123px;
+    margin: 0 auto;
+    padding: 24px 20px 40px;
+    background: linear-gradient(135deg, #0a2463 0%, #1e5fbe 50%, #3d9be9 100%);
+    box-shadow: 0 0 40px rgba(0,0,0,0.4);
+  }
+
+  /* =============================================
+     LAYAR (SCREEN) — setiap tampilan satu "screen"
+     ============================================= */
+  .screen { display: none; animation: fadeIn .4s ease; }
+  .screen.aktif { display: block; }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* =============================================
+     HEADER / NAVBAR
+     ============================================= */
+  .navbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 28px;
+    padding: 14px 20px;
+    background: rgba(255,255,255,0.12);
+    backdrop-filter: blur(12px);
+    border-radius: var(--radius);
+    border: 1px solid rgba(255,255,255,0.22);
+  }
+
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .logo-icon {
+    width: 40px; height: 40px;
+    background: var(--putih);
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px;
+  }
+
+  .logo-text {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--putih);
+    letter-spacing: -0.5px;
+  }
+
+  .logo-text span { color: var(--biru-muda); }
+
+  .nav-badge {
+    background: rgba(255,255,255,0.18);
+    color: var(--putih);
+    font-size: 12px;
+    padding: 5px 14px;
+    border-radius: 20px;
+    border: 1px solid rgba(255,255,255,0.3);
+  }
+
+  /* =============================================
+     KARTU PUTIH (panel konten)
+     ============================================= */
+  .panel {
+    background: var(--putih);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 32px 28px;
+    margin-bottom: 20px;
+  }
+
+  /* =============================================
+     LAYAR MENU UTAMA
+     ============================================= */
+  .menu-hero {
+    text-align: center;
+    padding: 20px 0 28px;
+  }
+
+  .menu-hero h1 {
+    font-size: clamp(26px, 5vw, 40px);
+    font-weight: 800;
+    color: var(--biru-gelap);
+    line-height: 1.2;
+    margin-bottom: 12px;
+  }
+
+  .menu-hero h1 span { color: var(--biru-tengah); }
+
+  .menu-hero p {
+    font-size: 15px;
+    color: var(--teks-abu);
+    max-width: 480px;
+    margin: 0 auto 28px;
+    line-height: 1.6;
+  }
+
+  /* Molekul dekoratif animasi di menu */
+  .mol-deco {
+    width: 130px; height: 130px;
+    margin: 0 auto 24px;
+    position: relative;
+  }
+
+  .mol-deco svg { width: 100%; height: 100%; }
+
+  @keyframes rotateMol {
+    from { transform: rotate(0deg); }
+    to   { transform: rotate(360deg); }
+  }
+
+  .mol-deco .orbit {
+    transform-origin: 65px 65px;
+    animation: rotateMol 6s linear infinite;
+  }
+
+  /* Grid mode permainan */
+  .mode-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 14px;
+    margin-bottom: 28px;
+  }
+
+  /* Kartu pilihan mode */
+  .mode-card {
+    background: var(--biru-pucat);
+    border: 2px solid transparent;
+    border-radius: var(--radius);
+    padding: 22px 18px;
+    text-align: center;
+    cursor: pointer;
+    transition: all .22s ease;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .mode-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, var(--biru-tengah), var(--biru-terang));
+    opacity: 0;
+    transition: opacity .22s;
+  }
+
+  .mode-card:hover { border-color: var(--biru-tengah); transform: translateY(-4px); box-shadow: 0 8px 28px rgba(30,95,190,0.22); }
+  .mode-card:hover::before { opacity: 0.06; }
+  .mode-card.terpilih { border-color: var(--biru-tengah); background: var(--biru-muda); }
+
+  .mode-card .ikon { font-size: 36px; margin-bottom: 10px; position: relative; z-index: 1; }
+  .mode-card h3 { font-size: 15px; font-weight: 700; color: var(--biru-gelap); position: relative; z-index: 1; }
+  .mode-card p { font-size: 12px; color: var(--teks-abu); margin-top: 5px; position: relative; z-index: 1; line-height: 1.4; }
+
+  .badge-new {
+    position: absolute; top: 10px; right: 10px;
+    background: var(--kuning); color: #7c4f00;
+    font-size: 10px; font-weight: 700; padding: 2px 8px;
+    border-radius: 20px; z-index: 2;
+  }
+
+  /* Tombol utama */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    border: none;
+    border-radius: var(--radius-sm);
+    padding: 13px 28px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all .18s ease;
+  }
+
+  .btn-biru {
+    background: var(--biru-tengah);
+    color: var(--putih);
+    box-shadow: 0 4px 14px rgba(30,95,190,0.35);
+  }
+  .btn-biru:hover { background: var(--biru-gelap); transform: translateY(-2px); box-shadow: 0 6px 20px rgba(10,36,99,0.35); }
+  .btn-biru:active { transform: translateY(0); }
+
+  .btn-outline {
+    background: transparent;
+    color: var(--biru-tengah);
+    border: 2px solid var(--biru-tengah);
+  }
+  .btn-outline:hover { background: var(--biru-pucat); }
+
+  .btn-besar { padding: 16px 40px; font-size: 16px; border-radius: var(--radius); }
+  .btn-blok { width: 100%; }
+
+  /* =============================================
+     HUD (HEAD-UP DISPLAY) saat bermain
+     ============================================= */
+  .hud {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 18px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+
+  .hud-stat {
+    background: rgba(255,255,255,0.15);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(255,255,255,0.25);
+    border-radius: var(--radius-sm);
+    padding: 8px 16px;
+    text-align: center;
+    min-width: 80px;
+  }
+
+  .hud-stat .label { font-size: 10px; color: rgba(255,255,255,0.75); text-transform: uppercase; letter-spacing: .5px; }
+  .hud-stat .nilai { font-size: 22px; font-weight: 700; color: var(--putih); line-height: 1.2; }
+
+  /* Timer bar */
+  .timer-wrap {
+    flex: 1; min-width: 120px;
+  }
+  .timer-label { font-size: 11px; color: rgba(255,255,255,0.75); margin-bottom: 4px; }
+  .timer-track {
+    background: rgba(255,255,255,0.2);
+    border-radius: 20px;
+    height: 12px;
+    overflow: hidden;
+  }
+  .timer-fill {
+    height: 100%;
+    border-radius: 20px;
+    background: linear-gradient(90deg, #10b981, #3d9be9);
+    transition: width .4s linear, background .4s;
+  }
+  .timer-fill.bahaya { background: linear-gradient(90deg, #ef4444, #f59e0b); }
+
+  .btn-kembali {
+    background: rgba(255,255,255,0.15);
+    border: 1px solid rgba(255,255,255,0.3);
+    color: var(--putih);
+    font-size: 13px;
+    padding: 8px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all .15s;
+  }
+  .btn-kembali:hover { background: rgba(255,255,255,0.25); }
+
+  /* =============================================
+     LAYAR: COCOKKAN BENTUK (Drag & Drop / Klik)
+     ============================================= */
+  .judul-soal {
+    font-size: 13px;
+    color: var(--teks-abu);
+    text-align: center;
+    margin-bottom: 6px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .8px;
+  }
+
+  .pertanyaan {
+    font-size: clamp(16px, 3.5vw, 22px);
+    font-weight: 700;
+    color: var(--biru-gelap);
+    text-align: center;
+    margin-bottom: 24px;
+    line-height: 1.3;
+  }
+
+  /* Grid pilihan jawaban */
+  .pilihan-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    gap: 12px;
+  }
+
+  /* Kartu pilihan dengan ANIMASI FLIP */
+  .kartu-pilihan {
+    perspective: 800px;
+    cursor: pointer;
+    aspect-ratio: 1 / 1.1;
+  }
+
+  .kartu-inner {
+    position: relative;
+    width: 100%; height: 100%;
+    transform-style: preserve-3d;
+    transition: transform .5s cubic-bezier(.4,0,.2,1);
+    border-radius: var(--radius);
+  }
+
+  /* Flip saat hover */
+  .kartu-pilihan:hover .kartu-inner {
+    transform: rotateY(8deg) scale(1.04);
+  }
+
+  /* Flip penuh saat dipilih/benar/salah */
+  .kartu-pilihan.dipilih .kartu-inner { transform: rotateY(180deg); }
+
+  .kartu-depan, .kartu-belakang {
+    position: absolute;
+    inset: 0;
+    border-radius: var(--radius);
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 14px 10px;
+    border: 2px solid transparent;
+    transition: border-color .2s, box-shadow .2s;
+  }
+
+  /* Sisi depan kartu */
+  .kartu-depan {
+    background: var(--putih);
+    box-shadow: 0 3px 16px rgba(10,36,99,0.1);
+  }
+
+  .kartu-depan:hover { box-shadow: 0 6px 24px rgba(30,95,190,0.2); }
+
+  /* Sisi belakang kartu (setelah flip) */
+  .kartu-belakang {
+    transform: rotateY(180deg);
+  }
+
+  .kartu-pilihan.benar .kartu-depan  { border-color: var(--hijau); }
+  .kartu-pilihan.salah .kartu-depan  { border-color: var(--merah); }
+  .kartu-pilihan.benar .kartu-belakang { background: #d1fae5; }
+  .kartu-pilihan.salah .kartu-belakang { background: #fee2e2; }
+
+  /* SVG molekul di dalam kartu */
+  .mol-svg {
+    width: 80px; height: 80px;
+    margin-bottom: 8px;
+  }
+
+  @media (max-width: 480px) {
+    .mol-svg { width: 60px; height: 60px; }
+  }
+
+  .kartu-nama {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--biru-gelap);
+    text-align: center;
+    line-height: 1.3;
+  }
+
+  /* =============================================
+     LAYAR: SUDUT IKATAN (Multiple Choice teks)
+     ============================================= */
+  .sudut-container { text-align: center; }
+
+  .mol-display {
+    width: 160px; height: 160px;
+    margin: 0 auto 20px;
+    background: var(--biru-pucat);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 3px solid var(--biru-muda);
+  }
+
+  .mol-display svg { width: 130px; height: 130px; }
+
+  .pilihan-teks {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-top: 16px;
+  }
+
+  .btn-pilihan-teks {
+    padding: 14px 12px;
+    border-radius: var(--radius-sm);
+    border: 2px solid var(--biru-muda);
+    background: var(--biru-pucat);
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--biru-gelap);
+    cursor: pointer;
+    transition: all .18s;
+    /* Animasi kecil saat hover — efek "hover" sesuai spesifikasi */
+  }
+
+  .btn-pilihan-teks:hover { 
+    background: var(--biru-muda); 
+    border-color: var(--biru-tengah); 
+    transform: translateY(-2px); 
+    box-shadow: 0 4px 14px rgba(30,95,190,0.18); 
+  }
+
+  .btn-pilihan-teks.benar { background: #d1fae5; border-color: var(--hijau); color: #065f46; }
+  .btn-pilihan-teks.salah { background: #fee2e2; border-color: var(--merah); color: #7f1d1d; }
+  .btn-pilihan-teks:disabled { cursor: default; transform: none; }
+
+  /* =============================================
+     LAYAR: SOAL KILAT (Flash Quiz berbasis waktu)
+     ============================================= */
+  .flash-soal {
+    font-size: clamp(14px, 3vw, 18px);
+    font-weight: 600;
+    color: var(--biru-gelap);
+    text-align: center;
+    line-height: 1.5;
+    min-height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    background: var(--biru-pucat);
+    border-radius: var(--radius-sm);
+    border: 2px solid var(--biru-muda);
+    margin-bottom: 20px;
+  }
+
+  .flash-pilihan {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .flash-btn {
+    padding: 14px 20px;
+    border-radius: var(--radius-sm);
+    border: 2px solid var(--biru-muda);
+    background: var(--putih);
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--teks-gelap);
+    cursor: pointer;
+    transition: all .18s;
+    text-align: left;
+    /* Efek hover pada kartu / tombol */
+  }
+  .flash-btn:hover { border-color: var(--biru-tengah); background: var(--biru-pucat); transform: translateX(4px); }
+  .flash-btn.benar { background: #d1fae5; border-color: var(--hijau); }
+  .flash-btn.salah { background: #fee2e2; border-color: var(--merah); }
+  .flash-btn:disabled { cursor: default; transform: none; }
+
+  /* nomor soal progress */
+  .progress-soal {
+    display: flex;
+    gap: 6px;
+    justify-content: center;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+  }
+
+  .progress-dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.25);
+    transition: background .2s;
+  }
+  .progress-dot.aktif { background: var(--putih); }
+  .progress-dot.benar { background: var(--hijau); }
+  .progress-dot.salah { background: var(--merah); }
+
+  /* =============================================
+     LAYAR: PAPAN SKOR (Leaderboard)
+     ============================================= */
+  .input-nama {
+    width: 100%;
+    padding: 13px 16px;
+    font-size: 16px;
+    border: 2px solid var(--biru-muda);
+    border-radius: var(--radius-sm);
+    outline: none;
+    transition: border-color .18s;
+    margin-bottom: 12px;
+    font-family: inherit;
+    color: var(--teks-gelap);
+  }
+  .input-nama:focus { border-color: var(--biru-tengah); }
+
+  .leaderboard { list-style: none; }
+
+  .lb-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    border-radius: var(--radius-sm);
+    margin-bottom: 8px;
+    background: var(--abu);
+    transition: all .18s;
+    animation: slideIn .3s ease both;
+  }
+
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateX(-20px); }
+    to   { opacity: 1; transform: translateX(0); }
+  }
+
+  .lb-item:nth-child(1) { background: linear-gradient(90deg, #fef9c3, #fff); border-left: 4px solid var(--kuning); }
+  .lb-item:nth-child(2) { background: linear-gradient(90deg, #f0f4f8, #fff); border-left: 4px solid #94a3b8; }
+  .lb-item:nth-child(3) { background: linear-gradient(90deg, #fef3e8, #fff); border-left: 4px solid #c97c2d; }
+
+  .lb-rank { font-size: 20px; font-weight: 800; color: var(--biru-tengah); min-width: 28px; }
+  .lb-nama { flex: 1; font-weight: 600; font-size: 15px; color: var(--teks-gelap); }
+  .lb-skor { font-size: 18px; font-weight: 700; color: var(--biru-tengah); }
+  .lb-mode { font-size: 11px; color: var(--teks-abu); background: var(--biru-pucat); padding: 2px 8px; border-radius: 20px; }
+
+  /* =============================================
+     LAYAR: HASIL (Result Screen)
+     ============================================= */
+  .hasil-hero { text-align: center; padding: 20px 0 28px; }
+  .hasil-ikon { font-size: 64px; margin-bottom: 16px; animation: bounceIn .5s ease; }
+
+  @keyframes bounceIn {
+    0%   { transform: scale(0); }
+    60%  { transform: scale(1.2); }
+    100% { transform: scale(1); }
+  }
+
+  .hasil-judul { font-size: 28px; font-weight: 800; color: var(--biru-gelap); margin-bottom: 8px; }
+  .hasil-sub   { font-size: 15px; color: var(--teks-abu); }
+
+  .skor-besar {
+    font-size: 72px;
+    font-weight: 800;
+    color: var(--biru-tengah);
+    line-height: 1;
+    margin: 16px 0 4px;
+  }
+
+  .stat-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin: 20px 0;
+  }
+
+  .stat-box {
+    background: var(--biru-pucat);
+    border-radius: var(--radius-sm);
+    padding: 14px 10px;
+    text-align: center;
+  }
+
+  .stat-box .angka { font-size: 26px; font-weight: 700; color: var(--biru-tengah); }
+  .stat-box .ket   { font-size: 11px; color: var(--teks-abu); margin-top: 2px; }
+
+  /* =============================================
+     TOAST NOTIFIKASI
+     ============================================= */
+  .toast {
+    position: fixed;
+    top: 24px;
+    left: 50%;
+    transform: translateX(-50%) translateY(-80px);
+    background: var(--biru-gelap);
+    color: var(--putih);
+    padding: 12px 24px;
+    border-radius: 40px;
+    font-size: 14px;
+    font-weight: 600;
+    z-index: 9999;
+    transition: transform .3s cubic-bezier(.4,0,.2,1);
+    white-space: nowrap;
+    box-shadow: 0 8px 28px rgba(0,0,0,0.3);
+  }
+  .toast.tampil { transform: translateX(-50%) translateY(0); }
+  .toast.hijau { background: var(--hijau); }
+  .toast.merah { background: var(--merah); }
+
+  /* =============================================
+     RESPONSIF — HP
+     ============================================= */
+  /* A4 fixed width — tidak perlu breakpoint mobile */
+  @media (max-width: 860px) {
+    body { padding: 0; }
+    #app { width: 100%; min-height: 100vh; box-shadow: none; }
+    .pilihan-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+
+  /* Divider */
+  .divider { height: 1px; background: var(--biru-muda); margin: 20px 0; }
+
+  /* Teks bantuan */
+  .teks-info {
+    font-size: 13px;
+    color: var(--teks-abu);
+    text-align: center;
+    margin-top: 12px;
+    line-height: 1.5;
+  }
+
+  /* Feedback teks */
+  .feedback-teks {
+    text-align: center;
+    font-size: 15px;
+    font-weight: 600;
+    padding: 10px;
+    border-radius: var(--radius-sm);
+    margin-top: 16px;
+    transition: all .2s;
+    min-height: 44px;
+  }
+  .feedback-teks.benar { background: #d1fae5; color: #065f46; }
+  .feedback-teks.salah { background: #fee2e2; color: #7f1d1d; }
+
+  /* Step dots untuk wizard setup */
+  .step-dot {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    background: var(--biru-muda);
+    color: var(--biru-tengah);
+    font-size: 13px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: all .2s;
+  }
+  .step-dot.aktif { background: var(--biru-tengah); color: white; }
+  .step-dot.selesai { background: var(--hijau); color: white; }
+
+  /* Kotak instruksi bergaris */
+  .instruksi-box {
+    background: var(--biru-pucat);
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--biru-muda);
+    padding: 12px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .instruksi-item {
+    font-size: 13px;
+    color: var(--teks-gelap);
+    line-height: 1.5;
+    padding: 4px 0;
+    border-bottom: 1px solid var(--biru-muda);
+  }
+  .instruksi-item:last-child { border-bottom: none; }
+  .instruksi-item code {
+    background: white;
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-size: 11px;
+    color: var(--biru-gelap);
+    border: 1px solid var(--biru-muda);
+  }
+
+  /* Tombol setup di navbar/menu */
+  .btn-setup {
+    background: rgba(255,255,255,0.12);
+    border: 1px solid rgba(255,255,255,0.25);
+    color: white;
+    font-size: 12px;
+    padding: 6px 14px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all .15s;
+  }
+  .btn-setup:hover { background: rgba(255,255,255,0.22); }
+
+  /* Badge status koneksi */
+  .badge-online { background:#d1fae5; color:#065f46; }
+  .badge-offline { background:#fee2e2; color:#7f1d1d; }
+  .badge-loading { background:var(--biru-pucat); color:var(--teks-abu); }
+
+</style>
+</head>
+<body>
+
+<!-- ====== TOAST NOTIFIKASI ====== -->
+<div class="toast" id="toast"></div>
+
+<div id="app">
+
+  <!-- ====================================================
+       NAVBAR
+       ==================================================== -->
+  <nav class="navbar">
+    <div class="logo">
+      <div class="logo-icon">⚗️</div>
+      <div class="logo-text">Molecu<span>Quest</span></div>
+    </div>
+    <div class="nav-badge">Kimia Kelas XI</div>
+    <button class="btn-setup" onclick="tampilSetup()" title="Setup papan skor online">⚙️ Setup</button>
+  </nav>
+
+  <!-- ====================================================
+       SCREEN 1: MENU UTAMA
+       ==================================================== -->
+  <div class="screen aktif" id="screen-menu">
+    <div class="panel">
+      <div class="menu-hero">
+
+        <!-- Animasi molekul dekoratif (SVG) -->
+        <div class="mol-deco">
+          <svg viewBox="0 0 130 130" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <!-- Atom pusat -->
+            <circle cx="65" cy="65" r="18" fill="#1e5fbe" opacity="0.9"/>
+            <text x="65" y="70" text-anchor="middle" font-size="13" font-weight="700" fill="white">C</text>
+            <!-- Orbit berputar dengan 4 atom -->
+            <g class="orbit">
+              <circle cx="65" cy="16" r="11" fill="#3d9be9"/>
+              <text x="65" y="20" text-anchor="middle" font-size="9" fill="white">H</text>
+              <circle cx="114" cy="65" r="11" fill="#3d9be9"/>
+              <text x="114" y="69" text-anchor="middle" font-size="9" fill="white">H</text>
+              <circle cx="65" cy="114" r="11" fill="#3d9be9"/>
+              <text x="65" y="118" text-anchor="middle" font-size="9" fill="white">H</text>
+              <circle cx="16" cy="65" r="11" fill="#3d9be9"/>
+              <text x="16" y="69" text-anchor="middle" font-size="9" fill="white">H</text>
+              <!-- Ikatan -->
+              <line x1="65" y1="27" x2="65" y2="47" stroke="#3d9be9" stroke-width="2.5" opacity="0.6"/>
+              <line x1="103" y1="65" x2="83" y2="65" stroke="#3d9be9" stroke-width="2.5" opacity="0.6"/>
+              <line x1="65" y1="103" x2="65" y2="83" stroke="#3d9be9" stroke-width="2.5" opacity="0.6"/>
+              <line x1="27" y1="65" x2="47" y2="65" stroke="#3d9be9" stroke-width="2.5" opacity="0.6"/>
+            </g>
+          </svg>
+        </div>
+
+        <h1>Game Edukasi<br><span>Bentuk Molekul</span></h1>
+        <p>Pelajari geometri molekul VSEPR secara interaktif — cocokkan bentuk, tebak sudut ikatan, dan uji kecepatan berpikir kamu!</p>
+
+        <!-- Badge topik -->
+        <div>
+          <span style="display:inline-block; background:#e0f2fe; color:#075985; font-size:12px; padding:4px 12px; border-radius:20px; margin:3px;">VSEPR</span>
+          <span style="display:inline-block; background:#e0f2fe; color:#075985; font-size:12px; padding:4px 12px; border-radius:20px; margin:3px;">Sudut Ikatan</span>
+          <span style="display:inline-block; background:#e0f2fe; color:#075985; font-size:12px; padding:4px 12px; border-radius:20px; margin:3px;">Geometri 3D</span>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <p style="font-size:13px; color:var(--teks-abu); text-align:center; margin-bottom:16px; font-weight:600; letter-spacing:.5px; text-transform:uppercase;">Pilih Mode Permainan</p>
+
+      <!-- Grid 3 mode permainan -->
+      <div class="mode-grid">
+
+        <div class="mode-card terpilih" data-mode="cocok" onclick="pilihMode(this, 'cocok')">
+          <div class="ikon">🔬</div>
+          <h3>Cocokkan Bentuk</h3>
+          <p>Pasangkan nama molekul dengan gambar geometri 3D-nya</p>
+        </div>
+
+        <div class="mode-card" data-mode="sudut" onclick="pilihMode(this, 'sudut')">
+          <div class="ikon">📐</div>
+          <h3>Tebak Sudut</h3>
+          <p>Tentukan besar sudut ikatan yang benar untuk tiap molekul</p>
+        </div>
+
+        <div class="mode-card" data-mode="flash" onclick="pilihMode(this, 'flash')">
+          <div class="ikon">⚡</div>
+          <h3>Soal Kilat</h3>
+          <p>Jawab soal berbasis waktu — skor makin besar makin cepat!</p>
+          <div class="badge-new">HOT</div>
+        </div>
+
+      </div>
+
+      <div style="display:flex; gap:10px; justify-content:center; flex-wrap:wrap;">
+        <button class="btn btn-biru btn-besar" onclick="mulaiPermainan()">🚀 Mulai Bermain</button>
+        <button class="btn btn-outline" onclick="tampilLeaderboard()">🏆 Papan Skor</button>
+      </div>
+
+      <p class="teks-info">💡 Tip: Baca materi bentuk molekul VSEPR sebelum bermain untuk skor yang lebih tinggi!</p>
+    </div>
+  </div>
+
+
+  <!-- ====================================================
+       SCREEN 2A: MODE COCOKKAN BENTUK
+       ==================================================== -->
+  <div class="screen" id="screen-cocok">
+    <!-- HUD -->
+    <div class="hud">
+      <div class="hud-stat"><div class="label">Skor</div><div class="nilai" id="cocok-skor">0</div></div>
+      <div class="hud-stat"><div class="label">Soal</div><div class="nilai" id="cocok-nomor">1/8</div></div>
+      <div class="timer-wrap">
+        <div class="timer-label">⏱ Waktu</div>
+        <div class="timer-track"><div class="timer-fill" id="cocok-timerbar" style="width:100%"></div></div>
+      </div>
+      <button class="btn-kembali" onclick="kembaliMenu()">✕ Keluar</button>
+    </div>
+
+    <div class="panel">
+      <div class="progress-soal" id="cocok-progress"></div>
+      <p class="judul-soal">Cocokkan Nama → Bentuk Molekul</p>
+      <p class="pertanyaan" id="cocok-pertanyaan">Pilih gambar yang sesuai dengan: <strong>Linear</strong></p>
+      <div class="pilihan-grid" id="cocok-pilihan"></div>
+      <div class="feedback-teks" id="cocok-feedback"></div>
+    </div>
+  </div>
+
+
+  <!-- ====================================================
+       SCREEN 2B: MODE TEBAK SUDUT IKATAN
+       ==================================================== -->
+  <div class="screen" id="screen-sudut">
+    <div class="hud">
+      <div class="hud-stat"><div class="label">Skor</div><div class="nilai" id="sudut-skor">0</div></div>
+      <div class="hud-stat"><div class="label">Soal</div><div class="nilai" id="sudut-nomor">1/8</div></div>
+      <div class="timer-wrap">
+        <div class="timer-label">⏱ Waktu</div>
+        <div class="timer-track"><div class="timer-fill" id="sudut-timerbar" style="width:100%"></div></div>
+      </div>
+      <button class="btn-kembali" onclick="kembaliMenu()">✕ Keluar</button>
+    </div>
+
+    <div class="panel sudut-container">
+      <div class="progress-soal" id="sudut-progress"></div>
+      <p class="judul-soal">Tentukan Sudut Ikatan</p>
+      <p class="pertanyaan" id="sudut-pertanyaan">Berapa sudut ikatan pada molekul <strong>H₂O</strong>?</p>
+
+      <!-- Tampilan SVG molekul besar -->
+      <div class="mol-display">
+        <svg id="sudut-molsvg" viewBox="0 0 130 130"></svg>
+      </div>
+
+      <div class="pilihan-teks" id="sudut-pilihan"></div>
+      <div class="feedback-teks" id="sudut-feedback"></div>
+    </div>
+  </div>
+
+
+  <!-- ====================================================
+       SCREEN 2C: MODE SOAL KILAT
+       ==================================================== -->
+  <div class="screen" id="screen-flash">
+    <div class="hud">
+      <div class="hud-stat"><div class="label">Skor</div><div class="nilai" id="flash-skor">0</div></div>
+      <div class="hud-stat"><div class="label">Combo</div><div class="nilai" id="flash-combo">x1</div></div>
+      <div class="timer-wrap">
+        <div class="timer-label">⏱ Countdown</div>
+        <div class="timer-track"><div class="timer-fill" id="flash-timerbar" style="width:100%"></div></div>
+      </div>
+      <button class="btn-kembali" onclick="kembaliMenu()">✕ Keluar</button>
+    </div>
+
+    <div class="panel">
+      <div class="progress-soal" id="flash-progress"></div>
+      <div class="flash-soal" id="flash-soal">Loading...</div>
+      <div class="flash-pilihan" id="flash-pilihan"></div>
+      <div class="feedback-teks" id="flash-feedback"></div>
+    </div>
+  </div>
+
+
+  <!-- ====================================================
+       SCREEN 3: HASIL
+       ==================================================== -->
+  <div class="screen" id="screen-hasil">
+    <div class="panel">
+      <div class="hasil-hero">
+        <div class="hasil-ikon" id="hasil-ikon">🎉</div>
+        <div class="hasil-judul" id="hasil-judul">Luar Biasa!</div>
+        <div class="hasil-sub" id="hasil-sub">Kamu berhasil menyelesaikan semua soal</div>
+        <div class="skor-besar" id="hasil-skor-besar">0</div>
+        <div style="font-size:13px; color:var(--teks-abu);">poin</div>
+      </div>
+
+      <div class="stat-grid">
+        <div class="stat-box"><div class="angka" id="stat-benar">0</div><div class="ket">✅ Benar</div></div>
+        <div class="stat-box"><div class="angka" id="stat-salah">0</div><div class="ket">❌ Salah</div></div>
+        <div class="stat-box"><div class="angka" id="stat-akurasi">0%</div><div class="ket">🎯 Akurasi</div></div>
+      </div>
+
+      <div class="divider"></div>
+
+      <!-- Form simpan skor -->
+      <p style="font-size:14px; font-weight:600; color:var(--teks-gelap); margin-bottom:12px; text-align:center;">💾 Simpan ke Papan Skor Bersama</p>
+      <input type="text" class="input-nama" id="input-nama" placeholder="Masukkan nama kamu..." maxlength="20">
+
+      <!-- Status koneksi Google Sheets -->
+      <div id="status-koneksi" style="font-size:12px; text-align:center; margin-bottom:10px; padding:6px 12px; border-radius:8px; background:var(--biru-pucat); color:var(--teks-abu);">
+        ⚡ Mengecek koneksi papan skor...
+      </div>
+
+      <button class="btn btn-biru btn-blok" id="btn-simpan-skor" onclick="simpanSkor()">🏆 Simpan & Lihat Papan Skor</button>
+
+      <div style="display:flex; gap:10px; margin-top:12px; flex-wrap:wrap;">
+        <button class="btn btn-outline" style="flex:1" onclick="ulangPermainan()">🔄 Main Lagi</button>
+        <button class="btn btn-outline" style="flex:1" onclick="kembaliMenu()">🏠 Menu</button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ====================================================
+       SCREEN 4: LEADERBOARD BERSAMA
+       ==================================================== -->
+  <div class="screen" id="screen-leaderboard">
+    <div class="panel">
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:20px;">
+        <h2 style="font-size:20px; font-weight:700; color:var(--biru-gelap);">🏆 Papan Skor Bersama</h2>
+        <button class="btn btn-outline" style="padding:8px 16px; font-size:13px;" onclick="kembaliMenu()">← Kembali</button>
+      </div>
+
+      <!-- Tab online/lokal -->
+      <div style="display:flex; gap:8px; margin-bottom:16px;">
+        <button id="tab-online" onclick="gantiTab('online')" style="flex:1; padding:9px; border-radius:8px; border:2px solid var(--biru-tengah); background:var(--biru-tengah); color:white; font-size:13px; font-weight:600; cursor:pointer;">🌐 Online (Semua Siswa)</button>
+        <button id="tab-lokal" onclick="gantiTab('lokal')" style="flex:1; padding:9px; border-radius:8px; border:2px solid var(--biru-muda); background:transparent; color:var(--biru-tengah); font-size:13px; font-weight:600; cursor:pointer;">💾 Lokal (HP ini)</button>
+      </div>
+
+      <!-- Panel online -->
+      <div id="panel-online">
+        <div id="lb-online-status" style="text-align:center; padding:16px; font-size:13px; color:var(--teks-abu);">
+          ⏳ Memuat data dari Google Sheets...
+        </div>
+        <div id="leaderboard-online"></div>
+        <button class="btn btn-outline btn-blok" style="margin-top:12px; font-size:13px;" onclick="muatLeaderboardOnline()">🔄 Refresh</button>
+      </div>
+
+      <!-- Panel lokal -->
+      <div id="panel-lokal" style="display:none;">
+        <div id="leaderboard-lokal"></div>
+        <div class="divider"></div>
+        <button class="btn btn-outline btn-blok" onclick="hapusSkorLokal()">🗑️ Hapus Skor Lokal</button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ====================================================
+       SCREEN 5: SETUP PANDUAN (untuk guru)
+       ==================================================== -->
+  <div class="screen" id="screen-setup">
+    <div class="panel">
+      <div style="display:flex; align-items:center; gap:12px; margin-bottom:20px;">
+        <button onclick="kembaliMenu()" style="background:none;border:none;font-size:20px;cursor:pointer;">←</button>
+        <h2 style="font-size:18px; font-weight:700; color:var(--biru-gelap);">⚙️ Setup Papan Skor Online</h2>
+      </div>
+
+      <!-- Step indikator -->
+      <div style="display:flex; gap:6px; margin-bottom:24px; align-items:center; justify-content:center;">
+        <div class="step-dot aktif" id="sdot-1">1</div>
+        <div style="flex:1; height:2px; background:var(--biru-muda); max-width:40px;"></div>
+        <div class="step-dot" id="sdot-2">2</div>
+        <div style="flex:1; height:2px; background:var(--biru-muda); max-width:40px;"></div>
+        <div class="step-dot" id="sdot-3">3</div>
+        <div style="flex:1; height:2px; background:var(--biru-muda); max-width:40px;"></div>
+        <div class="step-dot" id="sdot-4">4</div>
+      </div>
+
+      <!-- Step 1 -->
+      <div class="setup-step" id="step-1">
+        <div style="text-align:center; margin-bottom:16px;">
+          <div style="font-size:40px; margin-bottom:8px;">📊</div>
+          <h3 style="font-size:16px; font-weight:700; color:var(--biru-gelap);">Langkah 1: Buat Google Spreadsheet</h3>
+          <p style="font-size:13px; color:var(--teks-abu); margin-top:8px; line-height:1.6;">Buat spreadsheet baru di Google Sheets untuk menyimpan skor semua siswa.</p>
+        </div>
+        <div class="instruksi-box">
+          <div class="instruksi-item">1️⃣ Buka <strong>sheets.google.com</strong></div>
+          <div class="instruksi-item">2️⃣ Klik tombol <strong>+</strong> untuk buat spreadsheet baru</div>
+          <div class="instruksi-item">3️⃣ Beri nama sheet: <strong>"MolecuQuest Leaderboard"</strong></div>
+          <div class="instruksi-item">4️⃣ Di baris pertama, isi header: <code>Waktu | Nama | Skor | Mode | Akurasi</code></div>
+          <div class="instruksi-item">5️⃣ Ubah nama tab bawah (Sheet1) menjadi <strong>"Leaderboard"</strong></div>
+        </div>
+        <button class="btn btn-biru btn-blok" style="margin-top:16px;" onclick="nextStep(2)">Lanjut →</button>
+      </div>
+
+      <!-- Step 2 -->
+      <div class="setup-step" id="step-2" style="display:none;">
+        <div style="text-align:center; margin-bottom:16px;">
+          <div style="font-size:40px; margin-bottom:8px;">⚙️</div>
+          <h3 style="font-size:16px; font-weight:700; color:var(--biru-gelap);">Langkah 2: Buat Google Apps Script</h3>
+          <p style="font-size:13px; color:var(--teks-abu); margin-top:8px; line-height:1.6;">Script ini akan menjadi "jembatan" antara game dan spreadsheet kamu.</p>
+        </div>
+        <div class="instruksi-box">
+          <div class="instruksi-item">1️⃣ Di spreadsheet, klik menu <strong>Ekstensi → Apps Script</strong></div>
+          <div class="instruksi-item">2️⃣ Hapus semua kode yang ada</div>
+          <div class="instruksi-item">3️⃣ <strong>Copy</strong> kode di bawah ini dan paste ke editor</div>
+        </div>
+        <!-- Kode Apps Script yang bisa dicopy -->
+        <div style="position:relative; margin-top:12px;">
+          <div id="kode-script" style="background:#0d1b40; color:#cce4f7; padding:14px; border-radius:10px; font-size:11px; font-family:monospace; line-height:1.7; overflow-x:auto; white-space:pre;">function doPost(e) {
+  var sheet = SpreadsheetApp
+    .getActiveSpreadsheet()
+    .getSheetByName("Leaderboard");
+  var data = JSON.parse(e.postData.contents);
+  sheet.appendRow([
+    new Date().toLocaleString("id-ID"),
+    data.nama, data.skor,
+    data.mode, data.akurasi + "%"
+  ]);
+  return ContentService
+    .createTextOutput(JSON.stringify({status:"ok"}))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+function doGet(e) {
+  var sheet = SpreadsheetApp
+    .getActiveSpreadsheet()
+    .getSheetByName("Leaderboard");
+  var rows = sheet.getDataRange().getValues();
+  var result = rows.slice(1)
+    .filter(r => r[1])
+    .map(r => ({
+      waktu: r[0], nama: r[1],
+      skor: r[2], mode: r[3],
+      akurasi: r[4]
+    }));
+  result.sort((a,b) => b.skor - a.skor);
+  var top = result.slice(0, 30);
+  return ContentService
+    .createTextOutput(JSON.stringify(top))
+    .setMimeType(ContentService.MimeType.JSON);
+}</div>
+          <button onclick="copyKode()" style="position:absolute;top:8px;right:8px;background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);color:white;padding:5px 12px;border-radius:6px;font-size:11px;cursor:pointer;" id="btn-copy-kode">📋 Copy</button>
+        </div>
+        <div style="display:flex; gap:8px; margin-top:12px;">
+          <button class="btn btn-outline" style="flex:1;" onclick="nextStep(1)">← Kembali</button>
+          <button class="btn btn-biru" style="flex:2;" onclick="nextStep(3)">Sudah di-paste → Lanjut</button>
+        </div>
+      </div>
+
+      <!-- Step 3 -->
+      <div class="setup-step" id="step-3" style="display:none;">
+        <div style="text-align:center; margin-bottom:16px;">
+          <div style="font-size:40px; margin-bottom:8px;">🚀</div>
+          <h3 style="font-size:16px; font-weight:700; color:var(--biru-gelap);">Langkah 3: Deploy sebagai Web App</h3>
+          <p style="font-size:13px; color:var(--teks-abu); margin-top:8px; line-height:1.6;">Deploy script agar bisa diakses dari game.</p>
+        </div>
+        <div class="instruksi-box">
+          <div class="instruksi-item">1️⃣ Klik <strong>Deploy → New Deployment</strong></div>
+          <div class="instruksi-item">2️⃣ Klik ikon ⚙️ lalu pilih <strong>Web App</strong></div>
+          <div class="instruksi-item">3️⃣ <em>Execute as</em>: pilih <strong>Me</strong></div>
+          <div class="instruksi-item">4️⃣ <em>Who has access</em>: pilih <strong>Anyone</strong></div>
+          <div class="instruksi-item">5️⃣ Klik <strong>Deploy</strong> → izinkan akses</div>
+          <div class="instruksi-item">6️⃣ <strong>Copy URL</strong> yang muncul (panjang, diawali https://script.google...)</div>
+        </div>
+        <div style="display:flex; gap:8px; margin-top:12px;">
+          <button class="btn btn-outline" style="flex:1;" onclick="nextStep(2)">← Kembali</button>
+          <button class="btn btn-biru" style="flex:2;" onclick="nextStep(4)">Sudah dapat URL → Lanjut</button>
+        </div>
+      </div>
+
+      <!-- Step 4 -->
+      <div class="setup-step" id="step-4" style="display:none;">
+        <div style="text-align:center; margin-bottom:16px;">
+          <div style="font-size:40px; margin-bottom:8px;">🔗</div>
+          <h3 style="font-size:16px; font-weight:700; color:var(--biru-gelap);">Langkah 4: Tempel URL ke Game</h3>
+          <p style="font-size:13px; color:var(--teks-abu); margin-top:8px; line-height:1.6;">Paste URL deployment Apps Script di sini.</p>
+        </div>
+        <input type="text" class="input-nama" id="input-gsheet-url"
+          placeholder="https://script.google.com/macros/s/..."
+          style="font-size:12px;"
+          oninput="validasiUrl(this.value)">
+        <div id="url-validasi" style="font-size:12px; margin-top:6px; padding:8px; border-radius:8px; display:none;"></div>
+        <button class="btn btn-biru btn-blok" style="margin-top:12px;" id="btn-simpan-url" onclick="simpanUrlGsheet()" disabled>✅ Simpan & Aktifkan</button>
+        <div style="display:flex; gap:8px; margin-top:8px;">
+          <button class="btn btn-outline btn-blok" onclick="nextStep(3)">← Kembali</button>
+        </div>
+        <p style="font-size:11px; color:var(--teks-abu); text-align:center; margin-top:12px; line-height:1.6;">
+          URL disimpan di browser ini. Bagikan file HTML yang sama ke siswa — mereka tidak perlu setup ulang jika kamu sudah simpan URL di file-nya.
+        </p>
+      </div>
+
+    </div>
+  </div>
+
+</div><!-- end #app -->
+
+
+<!-- ====================================================
+     JAVASCRIPT UTAMA
+     ==================================================== -->
+<script>
+
+/* ============================================
+   DATA MOLEKUL
+   Setiap objek berisi: nama, formula, bentuk,
+   sudut ikatan, dan fungsi SVG untuk menggambar
+   ============================================ */
+const DATA_MOLEKUL = [
+  {
+    id: 'linear',
+    nama: 'Linear',
+    formula: 'BeCl₂',
+    sudut: 180,
+    sudutOpsi: [90, 120, 180, 109.5],
+    deskripsi: 'BeCl₂ memiliki 2 pasang ikatan, 0 PEB → linear dengan sudut 180°',
+    svgFunc: (s) => svgLinear(s)
+  },
+  {
+    id: 'segitiga',
+    nama: 'Segitiga Datar',
+    formula: 'BF₃',
+    sudut: 120,
+    sudutOpsi: [90, 120, 180, 109.5],
+    deskripsi: 'BF₃ memiliki 3 pasang ikatan, 0 PEB → segitiga datar dengan sudut 120°',
+    svgFunc: (s) => svgSegitigaDatar(s)
+  },
+  {
+    id: 'tetrahedral',
+    nama: 'Tetrahedral',
+    formula: 'CH₄',
+    sudut: 109.5,
+    sudutOpsi: [90, 120, 180, 109.5],
+    deskripsi: 'CH₄ memiliki 4 pasang ikatan, 0 PEB → tetrahedral dengan sudut 109,5°',
+    svgFunc: (s) => svgTetrahedral(s)
+  },
+  {
+    id: 'piramida',
+    nama: 'Piramida Segitiga',
+    formula: 'NH₃',
+    sudut: 107,
+    sudutOpsi: [107, 120, 180, 109.5],
+    deskripsi: 'NH₃ memiliki 3 pasang ikatan + 1 PEB → piramida segitiga, sudut ≈107°',
+    svgFunc: (s) => svgPiramida(s)
+  },
+  {
+    id: 'menekuk',
+    nama: 'Menekuk / Bengkok',
+    formula: 'H₂O',
+    sudut: 104.5,
+    sudutOpsi: [104.5, 120, 180, 109.5],
+    deskripsi: 'H₂O memiliki 2 pasang ikatan + 2 PEB → menekuk, sudut ≈104,5°',
+    svgFunc: (s) => svgMenekuk(s)
+  },
+  {
+    id: 'bipiramida',
+    nama: 'Bipiramida Trigonal',
+    formula: 'PCl₅',
+    sudut: 90,
+    sudutOpsi: [90, 120, 180, 109.5],
+    deskripsi: 'PCl₅ → bipiramida trigonal; sudut aksial-ekuatorial 90°, ekuatorial 120°',
+    svgFunc: (s) => svgBipiramida(s)
+  },
+  {
+    id: 'oktahedral',
+    nama: 'Oktahedral',
+    formula: 'SF₆',
+    sudut: 90,
+    sudutOpsi: [90, 120, 180, 109.5],
+    deskripsi: 'SF₆ memiliki 6 pasang ikatan, 0 PEB → oktahedral dengan sudut 90°',
+    svgFunc: (s) => svgOktahedral(s)
+  },
+  {
+    id: 'jungkat',
+    nama: 'Jungkat-Jungkit',
+    formula: 'SF₄',
+    sudut: 102,
+    sudutOpsi: [102, 120, 180, 109.5],
+    deskripsi: 'SF₄ memiliki 4 pasang ikatan + 1 PEB → jungkat-jungkit, sudut ≈102°',
+    svgFunc: (s) => svgJungkat(s)
+  }
+];
+
+/* ============================================
+   FUNGSI-FUNGSI MENGGAMBAR SVG MOLEKUL
+   Setiap fungsi menerima parameter ukuran (s)
+   dan mengembalikan string SVG
+   ============================================ */
+
+// Warna atom
+const WRN = { pusat:'#1e5fbe', luar:'#3d9be9', garis:'#185FA5', teks:'white' };
+
+function lingkaran(cx,cy,r,warna,label,fs=9) {
+  return `<circle cx="${cx}" cy="${cy}" r="${r}" fill="${warna}" opacity="0.92"/>
+          <text x="${cx}" y="${cy+fs*0.38}" text-anchor="middle" font-size="${fs}" font-weight="700" fill="${WRN.teks}">${label}</text>`;
+}
+
+function garis(x1,y1,x2,y2) {
+  return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${WRN.garis}" stroke-width="2.5" opacity="0.7"/>`;
+}
+
+// 1. Linear: A-B-A lurus
+function svgLinear(s=130) {
+  const c=s/2, r=10, rp=13;
+  return `
+    ${garis(15,c,s-15,c)}
+    ${lingkaran(15,c,r,WRN.luar,'Cl',8)}
+    ${lingkaran(c,c,rp,WRN.pusat,'Be',9)}
+    ${lingkaran(s-15,c,r,WRN.luar,'Cl',8)}`;
+}
+
+// 2. Segitiga Datar: atom di tengah, 3 di pojok segitiga
+function svgSegitigaDatar(s=130) {
+  const c=s/2;
+  const x1=c, y1=18, x2=18, y2=s-22, x3=s-18, y3=s-22;
+  return `
+    ${garis(c,c,x1,y1)} ${garis(c,c,x2,y2)} ${garis(c,c,x3,y3)}
+    ${lingkaran(c,c,13,WRN.pusat,'B',9)}
+    ${lingkaran(x1,y1,10,WRN.luar,'F',8)}
+    ${lingkaran(x2,y2,10,WRN.luar,'F',8)}
+    ${lingkaran(x3,y3,10,WRN.luar,'F',8)}`;
+}
+
+// 3. Tetrahedral: 4 atom mengelilingi pusat
+function svgTetrahedral(s=130) {
+  const c=s/2;
+  const pts = [[c,16],[s-16,c-10],[s-28,s-18],[28,s-18]];
+  let svg='';
+  pts.forEach(([x,y]) => { svg += garis(c,c,x,y); });
+  svg += lingkaran(c,c,14,WRN.pusat,'C',10);
+  pts.forEach(([x,y]) => { svg += lingkaran(x,y,10,WRN.luar,'H',8); });
+  // Garis putus-putus (ikatan ke belakang/depan)
+  svg += `<line x1="${c}" y1="${c}" x2="${s-28}" y2="${s-18}" stroke="${WRN.garis}" stroke-width="2" stroke-dasharray="4,3" opacity="0.5"/>`;
+  return svg;
+}
+
+// 4. Piramida Segitiga: 3 di bawah, 1 di atas
+function svgPiramida(s=130) {
+  const c=s/2;
+  const atas=[c,18];
+  const bawah=[[18,s-20],[c+20,s-24],[s-14,c+10]];
+  let svg='';
+  bawah.forEach(([x,y]) => { svg+=garis(c,c+8,x,y); svg+=garis(atas[0],atas[1]+10,x,y); });
+  svg += garis(atas[0],atas[1]+10,c,c+8);
+  svg += lingkaran(c,c+8,13,WRN.pusat,'N',9);
+  bawah.forEach(([x,y]) => svg+=lingkaran(x,y,10,WRN.luar,'H',8));
+  // PEB di atas
+  svg += `<circle cx="${atas[0]}" cy="${atas[1]}" r="7" fill="#f59e0b" opacity="0.7"/>`;
+  svg += `<text x="${atas[0]}" y="${atas[1]+3}" text-anchor="middle" font-size="7" fill="white">::</text>`;
+  return svg;
+}
+
+// 5. Menekuk: seperti V
+function svgMenekuk(s=130) {
+  const c=s/2;
+  const kiri=[22,s-24], kanan=[s-22,s-24];
+  return `
+    ${garis(c,c+5,kiri[0],kiri[1])}
+    ${garis(c,c+5,kanan[0],kanan[1])}
+    ${lingkaran(c,c+5,13,WRN.pusat,'O',9)}
+    ${lingkaran(kiri[0],kiri[1],10,WRN.luar,'H',8)}
+    ${lingkaran(kanan[0],kanan[1],10,WRN.luar,'H',8)}
+    <circle cx="${c}" cy="${c-18}" r="7" fill="#f59e0b" opacity="0.7"/>
+    <text x="${c}" y="${c-15}" text-anchor="middle" font-size="7" fill="white">::</text>
+    <circle cx="${c-14}" cy="${c-12}" r="7" fill="#f59e0b" opacity="0.7"/>`;
+}
+
+// 6. Bipiramida Trigonal
+function svgBipiramida(s=130) {
+  const c=s/2;
+  const atas=[c,10], bawah=[c,s-10];
+  const eq=[[16,c+8],[s-16,c+8],[c,c+30]];
+  let svg='';
+  svg += garis(c,c,atas[0],atas[1]);
+  svg += garis(c,c,bawah[0],bawah[1]);
+  eq.forEach(([x,y]) => svg+=garis(c,c,x,y));
+  svg += lingkaran(c,c,13,WRN.pusat,'P',9);
+  svg += lingkaran(atas[0],atas[1],9,'#185FA5','Cl',7);
+  svg += lingkaran(bawah[0],bawah[1],9,'#185FA5','Cl',7);
+  eq.forEach(([x,y]) => svg+=lingkaran(x,y,9,WRN.luar,'Cl',7));
+  return svg;
+}
+
+// 7. Oktahedral: 6 atom mengitari pusat
+function svgOktahedral(s=130) {
+  const c=s/2;
+  const pts=[[c,12],[c,s-12],[14,c],[s-14,c],[22,28],[s-22,s-28]];
+  let svg='';
+  pts.forEach(([x,y]) => svg+=garis(c,c,x,y));
+  svg += lingkaran(c,c,13,WRN.pusat,'S',9);
+  pts.forEach(([x,y]) => svg+=lingkaran(x,y,9,'#185FA5','F',7));
+  return svg;
+}
+
+// 8. Jungkat-Jungkit
+function svgJungkat(s=130) {
+  const c=s/2;
+  const pts=[[c,12],[22,s-20],[s-22,s-20],[s-12,c]];
+  let svg='';
+  pts.forEach(([x,y]) => svg+=garis(c,c,x,y));
+  svg += lingkaran(c,c,13,WRN.pusat,'S',9);
+  pts.forEach(([x,y]) => svg+=lingkaran(x,y,9,WRN.luar,'F',7));
+  // PEB
+  svg += `<circle cx="12" cy="${c}" r="7" fill="#f59e0b" opacity="0.7"/>`;
+  svg += `<text x="12" y="${c+3}" text-anchor="middle" font-size="6" fill="white">::</text>`;
+  return svg;
+}
+
+/* ============================================
+   STATE PERMAINAN
+   Variabel global untuk melacak status game
+   ============================================ */
+let modeSaatIni = 'cocok'; // mode yang dipilih
+let soalList = [];          // daftar soal diacak
+let indeksSoal = 0;         // soal ke berapa sekarang
+let skorSaatIni = 0;        // skor berjalan
+let jawabBenar = 0;
+let jawabSalah = 0;
+let timerInterval = null;   // interval timer
+let waktuSisa = 100;        // persen waktu tersisa (0-100)
+let comboCount = 1;         // multiplier combo (flash mode)
+let sudahJawab = false;     // mencegah klik ganda
+
+/* ============================================
+   FUNGSI NAVIGASI LAYAR
+   ============================================ */
+function tampilLayar(id) {
+  // Sembunyikan semua screen, tampilkan yang dipilih
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('aktif'));
+  document.getElementById(id).classList.add('aktif');
+  window.scrollTo(0,0);
+}
+
+function kembaliMenu() {
+  clearInterval(timerInterval);
+  tampilLayar('screen-menu');
+}
+
+/* ============================================
+   PILIH MODE
+   ============================================ */
+function pilihMode(el, mode) {
+  document.querySelectorAll('.mode-card').forEach(c => c.classList.remove('terpilih'));
+  el.classList.add('terpilih');
+  modeSaatIni = mode;
+}
+
+/* ============================================
+   MULAI PERMAINAN — entry point
+   ============================================ */
+function mulaiPermainan() {
+  // Reset state
+  skorSaatIni = 0;
+  jawabBenar = 0;
+  jawabSalah = 0;
+  indeksSoal = 0;
+  comboCount = 1;
+
+  // Acak urutan soal
+  soalList = [...DATA_MOLEKUL].sort(() => Math.random() - 0.5).slice(0, 8);
+
+  if (modeSaatIni === 'cocok') {
+    inisialisasiCocok();
+    tampilLayar('screen-cocok');
+  } else if (modeSaatIni === 'sudut') {
+    inisialisasiSudut();
+    tampilLayar('screen-sudut');
+  } else if (modeSaatIni === 'flash') {
+    inisialisasiFlash();
+    tampilLayar('screen-flash');
+  }
+}
+
+function ulangPermainan() { mulaiPermainan(); }
+
+/* ============================================
+   FUNGSI HELPER UMUM
+   ============================================ */
+
+// Kocok array (Fisher-Yates)
+function kocok(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i+1));
+    [a[i],a[j]] = [a[j],a[i]];
+  }
+  return a;
+}
+
+// Tampilkan progress dots
+function renderProgress(containerId, total, current, hasil) {
+  const el = document.getElementById(containerId);
+  el.innerHTML = '';
+  for (let i = 0; i < total; i++) {
+    const dot = document.createElement('div');
+    dot.className = 'progress-dot';
+    if (hasil[i] === true)  dot.classList.add('benar');
+    if (hasil[i] === false) dot.classList.add('salah');
+    if (i === current)      dot.classList.add('aktif');
+    el.appendChild(dot);
+  }
+}
+
+// Array hasil benar/salah
+let hasilArr = [];
+
+// Update HUD skor dan nomor soal
+function updateHUD(prefix) {
+  document.getElementById(prefix+'-skor').textContent = skorSaatIni;
+  document.getElementById(prefix+'-nomor').textContent = (indeksSoal+1)+'/'+soalList.length;
+}
+
+/* Timer per soal — countdown dari 100% ke 0% dalam `detik` detik */
+function mulaiTimer(barId, detik, onHabis) {
+  clearInterval(timerInterval);
+  waktuSisa = 100;
+  const bar = document.getElementById(barId);
+  bar.style.width = '100%';
+  bar.classList.remove('bahaya');
+
+  const step = 100 / (detik * 10); // update tiap 100ms
+  timerInterval = setInterval(() => {
+    waktuSisa -= step;
+    if (waktuSisa <= 0) {
+      waktuSisa = 0;
+      clearInterval(timerInterval);
+      onHabis();
+    }
+    bar.style.width = waktuSisa + '%';
+    if (waktuSisa < 30) bar.classList.add('bahaya');
+    else bar.classList.remove('bahaya');
+  }, 100);
+}
+
+/* Lanjut ke soal berikutnya atau tampil hasil */
+function soalBerikutnya(prefix) {
+  indeksSoal++;
+  if (indeksSoal >= soalList.length) {
+    clearInterval(timerInterval);
+    setTimeout(tampilHasil, 800);
+    return;
+  }
+  if (prefix === 'cocok') tampilSoalCocok();
+  else if (prefix === 'sudut') tampilSoalSudut();
+  else if (prefix === 'flash') tampilSoalFlash();
+}
+
+/* Hitung bonus waktu: semakin cepat semakin banyak poin */
+function hitungPoin(waktuPersen) {
+  return Math.max(10, Math.round(waktuPersen * 1.5));
+}
+
+/* ============================================
+   MODE 1: COCOKKAN BENTUK
+   ============================================ */
+function inisialisasiCocok() {
+  hasilArr = new Array(soalList.length).fill(null);
+  tampilSoalCocok();
+}
+
+function tampilSoalCocok() {
+  sudahJawab = false;
+  const soal = soalList[indeksSoal];
+  updateHUD('cocok');
+  renderProgress('cocok-progress', soalList.length, indeksSoal, hasilArr);
+
+  // Pertanyaan
+  document.getElementById('cocok-pertanyaan').innerHTML =
+    `Pilih gambar yang sesuai dengan: <strong style="color:var(--biru-tengah)">${soal.nama}</strong> (${soal.formula})`;
+  document.getElementById('cocok-feedback').textContent = '';
+  document.getElementById('cocok-feedback').className = 'feedback-teks';
+
+  // Buat 4 pilihan: 1 benar + 3 salah acak
+  const salah = kocok(DATA_MOLEKUL.filter(m => m.id !== soal.id)).slice(0,3);
+  const opsi = kocok([soal, ...salah]);
+
+  const grid = document.getElementById('cocok-pilihan');
+  grid.innerHTML = '';
+
+  opsi.forEach(mol => {
+    /* Membuat kartu dengan efek FLIP (3D CSS transform)
+       KARTU DEPAN: hanya gambar SVG, TANPA nama — agar tidak bocor jawaban
+       KARTU BELAKANG: muncul setelah diklik, baru tampilkan nama + ikon benar/salah */
+    const kartu = document.createElement('div');
+    kartu.className = 'kartu-pilihan';
+    kartu.innerHTML = `
+      <div class="kartu-inner">
+        <div class="kartu-depan">
+          <svg class="mol-svg" viewBox="0 0 130 130" xmlns="http://www.w3.org/2000/svg">
+            ${mol.svgFunc(130)}
+          </svg>
+          <!-- Tidak ada label nama di sini — agar siswa benar-benar menebak dari bentuk gambar -->
+        </div>
+        <div class="kartu-belakang">
+          <div style="font-size:28px">${mol.id===soal.id?'✅':'❌'}</div>
+          <div style="font-size:12px; font-weight:700; color:var(--teks-gelap); margin-top:8px; text-align:center">${mol.nama}</div>
+          <div style="font-size:11px; color:var(--teks-abu); margin-top:4px;">${mol.formula}</div>
+        </div>
+      </div>`;
+
+    kartu.dataset.molId = mol.id; // simpan id molekul sebagai data attribute
+    kartu.addEventListener('click', () => klikCocok(kartu, mol, soal));
+    grid.appendChild(kartu);
+  });
+
+  // Timer 15 detik per soal
+  mulaiTimer('cocok-timerbar', 15, () => {
+    if (!sudahJawab) {
+      sudahJawab = true;
+      hasilArr[indeksSoal] = false;
+      jawabSalah++;
+      tampilFeedback('cocok-feedback', false, '⏰ Waktu habis! Jawaban: '+soal.nama);
+      // Cari dan flip kartu yang benar menggunakan data-id
+      document.querySelectorAll('.kartu-pilihan').forEach(k => {
+        if (k.dataset.molId === soal.id) {
+          k.classList.add('benar');
+          k.querySelector('.kartu-inner').style.transform = 'rotateY(180deg)';
+        }
+      });
+      setTimeout(() => soalBerikutnya('cocok'), 1500);
+    }
+  });
+}
+
+function klikCocok(kartu, molDipilih, soalBenar) {
+  if (sudahJawab) return;
+  sudahJawab = true;
+  clearInterval(timerInterval);
+
+  // Animasi flip kartu yang diklik
+  kartu.classList.add('dipilih');
+
+  const benar = molDipilih.id === soalBenar.id;
+  hasilArr[indeksSoal] = benar;
+
+  if (benar) {
+    kartu.classList.add('benar');
+    const poin = hitungPoin(waktuSisa);
+    skorSaatIni += poin;
+    jawabBenar++;
+    updateHUD('cocok');
+    tampilFeedback('cocok-feedback', true, `✅ Benar! +${poin} poin — ${soalBenar.deskripsi}`);
+    tampilToast(`+${poin} poin! 🎯`, 'hijau');
+  } else {
+    kartu.classList.add('salah');
+    jawabSalah++;
+    tampilFeedback('cocok-feedback', false, `❌ Salah! Jawaban benar: ${soalBenar.nama} — ${soalBenar.deskripsi}`);
+    tampilToast('Salah! Coba lagi 💪', 'merah');
+    // Flip kartu yang benar menggunakan data-id
+    document.querySelectorAll('.kartu-pilihan').forEach(k => {
+      if (k.dataset.molId === soalBenar.id) {
+        setTimeout(() => {
+          k.classList.add('benar');
+          k.querySelector('.kartu-inner').style.transform = 'rotateY(180deg)';
+        }, 300);
+      }
+    });
+  }
+  setTimeout(() => soalBerikutnya('cocok'), 2000);
+}
+
+/* ============================================
+   MODE 2: TEBAK SUDUT IKATAN
+   ============================================ */
+function inisialisasiSudut() {
+  hasilArr = new Array(soalList.length).fill(null);
+  tampilSoalSudut();
+}
+
+function tampilSoalSudut() {
+  sudahJawab = false;
+  const soal = soalList[indeksSoal];
+  updateHUD('sudut');
+  renderProgress('sudut-progress', soalList.length, indeksSoal, hasilArr);
+
+  document.getElementById('sudut-pertanyaan').innerHTML =
+    `Berapa sudut ikatan pada molekul <strong style="color:var(--biru-tengah)">${soal.formula}</strong> (${soal.nama})?`;
+  document.getElementById('sudut-feedback').textContent = '';
+  document.getElementById('sudut-feedback').className = 'feedback-teks';
+
+  // Gambar molekul di display besar
+  const svgEl = document.getElementById('sudut-molsvg');
+  svgEl.innerHTML = soal.svgFunc(130);
+
+  // Buat pilihan sudut (dari opsi soal tersebut)
+  const opsi = kocok(soal.sudutOpsi);
+  const pilihan = document.getElementById('sudut-pilihan');
+  pilihan.innerHTML = '';
+
+  opsi.forEach(sudut => {
+    const btn = document.createElement('button');
+    btn.className = 'btn-pilihan-teks';
+    btn.textContent = sudut + '°';
+    btn.addEventListener('click', () => klikSudut(btn, sudut, soal));
+    pilihan.appendChild(btn);
+  });
+
+  mulaiTimer('sudut-timerbar', 12, () => {
+    if (!sudahJawab) {
+      sudahJawab = true;
+      hasilArr[indeksSoal] = false;
+      jawabSalah++;
+      tampilFeedback('sudut-feedback', false, `⏰ Waktu habis! Sudut benar: ${soal.sudut}°`);
+      // Highlight jawaban benar
+      pilihan.querySelectorAll('.btn-pilihan-teks').forEach(b => {
+        if (parseFloat(b.textContent) === soal.sudut) b.classList.add('benar');
+        b.disabled = true;
+      });
+      setTimeout(() => soalBerikutnya('sudut'), 1500);
+    }
+  });
+}
+
+function klikSudut(btn, sudutDipilih, soal) {
+  if (sudahJawab) return;
+  sudahJawab = true;
+  clearInterval(timerInterval);
+
+  document.querySelectorAll('.btn-pilihan-teks').forEach(b => b.disabled = true);
+
+  const benar = sudutDipilih === soal.sudut;
+  hasilArr[indeksSoal] = benar;
+  btn.classList.add(benar ? 'benar' : 'salah');
+
+  if (benar) {
+    const poin = hitungPoin(waktuSisa);
+    skorSaatIni += poin;
+    jawabBenar++;
+    updateHUD('sudut');
+    tampilFeedback('sudut-feedback', true, `✅ Tepat! +${poin} poin — ${soal.deskripsi}`);
+    tampilToast(`+${poin} poin! 🎯`, 'hijau');
+  } else {
+    jawabSalah++;
+    // Tampilkan jawaban benar
+    document.querySelectorAll('.btn-pilihan-teks').forEach(b => {
+      if (parseFloat(b.textContent) === soal.sudut) b.classList.add('benar');
+    });
+    tampilFeedback('sudut-feedback', false, `❌ Jawaban benar: ${soal.sudut}° — ${soal.deskripsi}`);
+    tampilToast('Salah! 💪', 'merah');
+  }
+  setTimeout(() => soalBerikutnya('sudut'), 2000);
+}
+
+/* ============================================
+   MODE 3: SOAL KILAT (Flash Quiz)
+   Soal berbasis teks tentang VSEPR
+   Combo multiplier: jawab benar berturut-turut → skor makin besar
+   ============================================ */
+
+// Bank soal kilat (lebih banyak dari 8 agar tidak selalu sama)
+const BANK_FLASH = [
+  { soal:'Molekul dengan 2 pasang ikatan dan 0 pasang elektron bebas (PEB) memiliki bentuk...', jwb:'Linear', opsi:['Linear','Menekuk','Tetrahedral','Piramida Segitiga'] },
+  { soal:'Teori VSEPR digunakan untuk memprediksi...', jwb:'Bentuk geometri molekul', opsi:['Massa molekul','Bentuk geometri molekul','Titik didih zat','Warna senyawa'] },
+  { soal:'SF₆ memiliki 6 pasang ikatan, 0 PEB. Bentuknya adalah...', jwb:'Oktahedral', opsi:['Tetrahedral','Bipiramida Trigonal','Oktahedral','Piramida Segitiga'] },
+  { soal:'NH₃ memiliki bentuk piramida segitiga karena...', jwb:'Memiliki 1 pasang elektron bebas', opsi:['Sudut ikatannya 120°','Memiliki 1 pasang elektron bebas','Atomnya sangat besar','Ikatannya kovalen rangkap'] },
+  { soal:'Sudut ikatan pada CH₄ (tetrahedral) adalah...', jwb:'109,5°', opsi:['90°','120°','109,5°','180°'] },
+  { soal:'Molekul BF₃ memiliki bentuk segitiga datar karena atom B memiliki...', jwb:'3 pasang ikatan, 0 PEB', opsi:['2 pasang ikatan, 1 PEB','3 pasang ikatan, 0 PEB','4 pasang ikatan, 0 PEB','3 pasang ikatan, 1 PEB'] },
+  { soal:'Pasangan elektron bebas (PEB) menyebabkan sudut ikatan...', jwb:'Menjadi lebih kecil', opsi:['Menjadi lebih besar','Menjadi lebih kecil','Tidak berubah','Menjadi 180°'] },
+  { soal:'Bentuk molekul H₂O adalah menekuk karena memiliki...', jwb:'2 PEB pada atom O', opsi:['1 PEB pada atom H','2 PEB pada atom O','Ikatan rangkap','Muatan negatif'] },
+  { soal:'PCl₅ memiliki bentuk bipiramida trigonal dengan sudut ikatan aksial-ekuatorial...', jwb:'90°', opsi:['60°','90°','120°','109,5°'] },
+  { soal:'Jumlah domain elektron pada molekul CO₂ (linear) adalah...', jwb:'2', opsi:['1','2','3','4'] },
+  { soal:'Molekul dengan bentuk menekuk memiliki...', jwb:'2 pasang ikatan + 2 PEB', opsi:['2 pasang ikatan + 0 PEB','2 pasang ikatan + 1 PEB','2 pasang ikatan + 2 PEB','3 pasang ikatan + 1 PEB'] },
+  { soal:'Sudut ikatan pada H₂O lebih kecil dari NH₃ karena...', jwb:'H₂O memiliki 2 PEB, NH₃ hanya 1 PEB', opsi:['H₂O lebih ringan','H₂O memiliki 2 PEB, NH₃ hanya 1 PEB','NH₃ lebih polar','Atom O lebih besar dari N'] },
+];
+
+function inisialisasiFlash() {
+  hasilArr = new Array(10).fill(null);
+  // Ambil 10 soal acak dari bank
+  soalList = kocok(BANK_FLASH).slice(0, 10);
+  comboCount = 1;
+  tampilSoalFlash();
+}
+
+function tampilSoalFlash() {
+  if (indeksSoal >= soalList.length) { tampilHasil(); return; }
+  sudahJawab = false;
+  const soal = soalList[indeksSoal];
+
+  document.getElementById('flash-skor').textContent = skorSaatIni;
+  document.getElementById('flash-combo').textContent = 'x'+comboCount;
+  renderProgress('flash-progress', soalList.length, indeksSoal, hasilArr);
+
+  document.getElementById('flash-soal').textContent = soal.soal;
+  document.getElementById('flash-feedback').textContent = '';
+  document.getElementById('flash-feedback').className = 'feedback-teks';
+
+  const opsi = kocok(soal.opsi);
+  const pilihan = document.getElementById('flash-pilihan');
+  pilihan.innerHTML = '';
+
+  opsi.forEach((teks, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'flash-btn';
+    btn.innerHTML = `<span style="display:inline-block;width:22px;height:22px;background:var(--biru-muda);border-radius:6px;text-align:center;line-height:22px;font-size:12px;font-weight:700;color:var(--biru-tengah);margin-right:10px;">${['A','B','C','D'][i]}</span>${teks}`;
+    btn.addEventListener('click', () => klikFlash(btn, teks, soal));
+    pilihan.appendChild(btn);
+  });
+
+  // Timer 10 detik (lebih cepat → lebih seru)
+  mulaiTimer('flash-timerbar', 10, () => {
+    if (!sudahJawab) {
+      sudahJawab = true;
+      hasilArr[indeksSoal] = false;
+      jawabSalah++;
+      comboCount = 1; // reset combo
+      tampilFeedback('flash-feedback', false, `⏰ Waktu habis! Jawaban: ${soal.jwb}`);
+      pilihan.querySelectorAll('.flash-btn').forEach(b => {
+        if (b.textContent.includes(soal.jwb)) b.classList.add('benar');
+        b.disabled = true;
+      });
+      document.getElementById('flash-combo').textContent = 'x1';
+      setTimeout(() => soalBerikutnya('flash'), 1500);
+    }
+  });
+}
+
+function klikFlash(btn, jwbDipilih, soal) {
+  if (sudahJawab) return;
+  sudahJawab = true;
+  clearInterval(timerInterval);
+
+  document.querySelectorAll('.flash-btn').forEach(b => b.disabled = true);
+
+  const benar = jwbDipilih === soal.jwb;
+  hasilArr[indeksSoal] = benar;
+  btn.classList.add(benar ? 'benar' : 'salah');
+
+  if (benar) {
+    const poin = hitungPoin(waktuSisa) * comboCount; // combo multiplier!
+    skorSaatIni += poin;
+    jawabBenar++;
+    comboCount = Math.min(comboCount + 1, 5); // maks combo x5
+    document.getElementById('flash-skor').textContent = skorSaatIni;
+    document.getElementById('flash-combo').textContent = 'x'+comboCount;
+    tampilFeedback('flash-feedback', true, `✅ Benar! +${poin} poin (combo x${comboCount-1})`);
+    tampilToast(`+${poin} poin! Combo x${comboCount} 🔥`, 'hijau');
+  } else {
+    jawabSalah++;
+    comboCount = 1;
+    document.getElementById('flash-combo').textContent = 'x1';
+    document.querySelectorAll('.flash-btn').forEach(b => {
+      if (b.textContent.includes(soal.jwb)) b.classList.add('benar');
+    });
+    tampilFeedback('flash-feedback', false, `❌ Jawaban: ${soal.jwb}`);
+    tampilToast('Combo reset! 😅', 'merah');
+  }
+  setTimeout(() => soalBerikutnya('flash'), 1800);
+}
+
+/* ============================================
+   TAMPIL FEEDBACK
+   ============================================ */
+function tampilFeedback(elId, benar, pesan) {
+  const el = document.getElementById(elId);
+  el.textContent = pesan;
+  el.className = 'feedback-teks ' + (benar ? 'benar' : 'salah');
+}
+
+/* ============================================
+   TAMPIL TOAST NOTIFIKASI SINGKAT
+   ============================================ */
+function tampilToast(pesan, kelas='') {
+  const t = document.getElementById('toast');
+  t.textContent = pesan;
+  t.className = 'toast ' + kelas + ' tampil';
+  setTimeout(() => t.className = 'toast', 2000);
+}
+
+/* ============================================
+   TAMPIL LAYAR HASIL
+   ============================================ */
+function tampilHasil() {
+  const total = jawabBenar + jawabSalah;
+  const akurasi = total > 0 ? Math.round((jawabBenar/total)*100) : 0;
+
+  // Tentukan ikon & pesan berdasarkan akurasi
+  let ikon = '😊', judul = 'Bagus!', sub = 'Terus semangat belajar!';
+  if (akurasi >= 90) { ikon='🏆'; judul='Luar Biasa!'; sub='Kamu ahli bentuk molekul! Sempurna!'; }
+  else if (akurasi >= 70) { ikon='🎉'; judul='Hebat!'; sub='Penguasaan materi sudah baik!'; }
+  else if (akurasi >= 50) { ikon='📚'; judul='Lumayan!'; sub='Masih ada yang perlu dipelajari lagi.'; }
+  else { ikon='💪'; judul='Ayo Coba Lagi!'; sub='Baca materi VSEPR dulu ya!'; }
+
+  document.getElementById('hasil-ikon').textContent = ikon;
+  document.getElementById('hasil-judul').textContent = judul;
+  document.getElementById('hasil-sub').textContent = sub;
+  document.getElementById('hasil-skor-besar').textContent = skorSaatIni;
+  document.getElementById('stat-benar').textContent = jawabBenar;
+  document.getElementById('stat-salah').textContent = jawabSalah;
+  document.getElementById('stat-akurasi').textContent = akurasi+'%';
+
+  tampilLayar('screen-hasil');
+}
+
+/* ============================================
+   KONFIGURASI GOOGLE SHEETS
+   URL_GSHEET diambil dari localStorage agar
+   guru cukup setup sekali, lalu share file HTML
+   ============================================ */
+
+// ⬇️ GURU BISA ISI LANGSUNG DI SINI (opsional):
+// Ganti string kosong dengan URL Apps Script kamu
+const URL_HARDCODE = '';
+
+// Ambil URL dari localStorage (hasil setup wizard)
+function getUrlGsheet() {
+  return URL_HARDCODE || localStorage.getItem('molecuquest_gsheet_url') || '';
+}
+
+/* ============================================
+   CEK STATUS KONEKSI saat layar hasil muncul
+   ============================================ */
+function cekKoneksi() {
+  const url = getUrlGsheet();
+  const el = document.getElementById('status-koneksi');
+  if (!url) {
+    el.textContent = '⚠️ Papan skor online belum dikonfigurasi — klik ⚙️ Setup di pojok kanan atas';
+    el.className = 'badge-offline';
+    el.style.cssText = 'font-size:12px;text-align:center;margin-bottom:10px;padding:8px 12px;border-radius:8px;background:#fee2e2;color:#7f1d1d;';
+  } else {
+    el.textContent = '✅ Papan skor online aktif — skor kamu akan masuk ke Google Sheets!';
+    el.style.cssText = 'font-size:12px;text-align:center;margin-bottom:10px;padding:8px 12px;border-radius:8px;background:#d1fae5;color:#065f46;';
+  }
+}
+
+/* ============================================
+   TAMPIL HASIL — override versi lama
+   ============================================ */
+function tampilHasil() {
+  const total = jawabBenar + jawabSalah;
+  const akurasi = total > 0 ? Math.round((jawabBenar/total)*100) : 0;
+
+  let ikon = '😊', judul = 'Bagus!', sub = 'Terus semangat belajar!';
+  if (akurasi >= 90) { ikon='🏆'; judul='Luar Biasa!'; sub='Kamu ahli bentuk molekul! Sempurna!'; }
+  else if (akurasi >= 70) { ikon='🎉'; judul='Hebat!'; sub='Penguasaan materi sudah baik!'; }
+  else if (akurasi >= 50) { ikon='📚'; judul='Lumayan!'; sub='Masih ada yang perlu dipelajari lagi.'; }
+  else { ikon='💪'; judul='Ayo Coba Lagi!'; sub='Baca materi VSEPR dulu ya!'; }
+
+  document.getElementById('hasil-ikon').textContent = ikon;
+  document.getElementById('hasil-judul').textContent = judul;
+  document.getElementById('hasil-sub').textContent = sub;
+  document.getElementById('hasil-skor-besar').textContent = skorSaatIni;
+  document.getElementById('stat-benar').textContent = jawabBenar;
+  document.getElementById('stat-salah').textContent = jawabSalah;
+  document.getElementById('stat-akurasi').textContent = akurasi+'%';
+
+  cekKoneksi(); // cek status koneksi Google Sheets
+  tampilLayar('screen-hasil');
+}
+
+/* ============================================
+   SIMPAN SKOR — ke Google Sheets + localStorage
+   ============================================ */
+async function simpanSkor() {
+  const nama = document.getElementById('input-nama').value.trim();
+  if (!nama) { tampilToast('Masukkan nama dulu!', 'merah'); return; }
+
+  const total = jawabBenar + jawabSalah;
+  const akurasi = total > 0 ? Math.round((jawabBenar/total)*100) : 0;
+  const modeLabel = { cocok:'Cocokkan Bentuk', sudut:'Tebak Sudut', flash:'Soal Kilat' }[modeSaatIni];
+
+  const payload = { nama, skor: skorSaatIni, mode: modeLabel, akurasi };
+
+  // 1. Simpan ke localStorage sebagai backup
+  const lokal = JSON.parse(localStorage.getItem('molecuquest_lb') || '[]');
+  lokal.push({ ...payload, waktu: new Date().toLocaleDateString('id-ID') });
+  lokal.sort((a,b) => b.skor - a.skor);
+  localStorage.setItem('molecuquest_lb', JSON.stringify(lokal.slice(0,50)));
+
+  // 2. Kirim ke Google Sheets jika URL sudah dikonfigurasi
+  const url = getUrlGsheet();
+  const btn = document.getElementById('btn-simpan-skor');
+  btn.disabled = true;
+  btn.textContent = '⏳ Menyimpan...';
+
+  if (url) {
+    try {
+      // Gunakan no-cors karena Apps Script tidak support CORS preflight
+      await fetch(url, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: { 'Content-Type': 'text/plain' },
+        body: JSON.stringify(payload)
+      });
+      tampilToast('Skor tersimpan ke papan skor online! 🏆', 'hijau');
+    } catch(err) {
+      tampilToast('Tersimpan lokal (cek koneksi internet)', '');
+    }
+  } else {
+    tampilToast('Tersimpan lokal. Setup untuk papan skor bersama!', '');
+  }
+
+  btn.disabled = false;
+  btn.textContent = '🏆 Simpan & Lihat Papan Skor';
+  document.getElementById('input-nama').value = '';
+
+  // Langsung buka leaderboard
+  setTimeout(() => tampilLeaderboard(), 500);
+}
+
+/* ============================================
+   TAMPIL LEADERBOARD — tab online & lokal
+   ============================================ */
+function tampilLeaderboard() {
+  gantiTab('online');
+  tampilLayar('screen-leaderboard');
+  muatLeaderboardOnline();
+  renderLeaderboardLokal();
+}
+
+function gantiTab(tab) {
+  const isOnline = tab === 'online';
+  document.getElementById('panel-online').style.display = isOnline ? 'block' : 'none';
+  document.getElementById('panel-lokal').style.display  = isOnline ? 'none'  : 'block';
+  document.getElementById('tab-online').style.background = isOnline ? 'var(--biru-tengah)' : 'transparent';
+  document.getElementById('tab-online').style.color      = isOnline ? 'white' : 'var(--biru-tengah)';
+  document.getElementById('tab-lokal').style.background  = isOnline ? 'transparent' : 'var(--biru-tengah)';
+  document.getElementById('tab-lokal').style.color       = isOnline ? 'var(--biru-tengah)' : 'white';
+  if (tab === 'lokal') renderLeaderboardLokal();
+}
+
+/* Muat data dari Google Sheets (doGet) */
+async function muatLeaderboardOnline() {
+  const url = getUrlGsheet();
+  const statusEl = document.getElementById('lb-online-status');
+  const listEl   = document.getElementById('leaderboard-online');
+
+  if (!url) {
+    statusEl.innerHTML = `
+      <div style="padding:20px; text-align:center;">
+        <div style="font-size:36px; margin-bottom:12px;">⚙️</div>
+        <p style="font-size:14px; font-weight:600; color:var(--biru-gelap); margin-bottom:8px;">Papan skor online belum aktif</p>
+        <p style="font-size:13px; color:var(--teks-abu); margin-bottom:16px; line-height:1.6;">Klik tombol Setup untuk menghubungkan game dengan Google Sheets agar semua siswa bisa bersaing bersama!</p>
+        <button class="btn btn-biru" onclick="tampilSetup()">⚙️ Setup Sekarang</button>
+      </div>`;
+    listEl.innerHTML = '';
+    return;
+  }
+
+  statusEl.textContent = '⏳ Memuat data papan skor...';
+  statusEl.style.display = 'block';
+  listEl.innerHTML = '';
+
+  try {
+    // Tambahkan timestamp agar tidak kena cache browser
+    const res = await fetch(url + '?t=' + Date.now());
+    const data = await res.json();
+
+    statusEl.style.display = 'none';
+
+    if (!data.length) {
+      listEl.innerHTML = '<p style="text-align:center;color:var(--teks-abu);padding:24px;">Belum ada skor. Jadilah yang pertama! 🚀</p>';
+      return;
+    }
+
+    const medali = ['🥇','🥈','🥉'];
+    listEl.innerHTML = '<ul class="leaderboard">' +
+      data.map((d,i) => `
+        <li class="lb-item" style="animation-delay:${i*0.04}s">
+          <div class="lb-rank">${medali[i] || (i+1)}</div>
+          <div class="lb-nama">${escHtml(d.nama)}<br>
+            <span style="font-size:11px;color:var(--teks-abu);">${d.waktu||''}</span>
+          </div>
+          <div class="lb-mode">${escHtml(d.mode||'')}</div>
+          <div style="text-align:right;">
+            <div class="lb-skor">${d.skor}</div>
+            <div style="font-size:11px;color:var(--teks-abu);">${d.akurasi||''}</div>
+          </div>
+        </li>`).join('') + '</ul>';
+
+  } catch(err) {
+    statusEl.textContent = '❌ Gagal memuat. Periksa URL Apps Script atau koneksi internet.';
+    statusEl.style.cssText = 'font-size:12px;text-align:center;padding:12px;border-radius:8px;background:#fee2e2;color:#7f1d1d;';
+  }
+}
+
+/* Render leaderboard lokal (localStorage) */
+function renderLeaderboardLokal() {
+  const data = JSON.parse(localStorage.getItem('molecuquest_lb') || '[]');
+  const el = document.getElementById('leaderboard-lokal');
+  if (!data.length) {
+    el.innerHTML = '<p style="text-align:center;color:var(--teks-abu);padding:24px;">Belum ada skor di perangkat ini.</p>';
+    return;
+  }
+  const medali = ['🥇','🥈','🥉'];
+  el.innerHTML = '<ul class="leaderboard">' +
+    data.map((d,i) => `
+      <li class="lb-item" style="animation-delay:${i*0.04}s">
+        <div class="lb-rank">${medali[i]||(i+1)}</div>
+        <div class="lb-nama">${escHtml(d.nama)}<br>
+          <span style="font-size:11px;color:var(--teks-abu);">${d.waktu||''}</span>
+        </div>
+        <div class="lb-mode">${escHtml(d.mode||'')}</div>
+        <div class="lb-skor">${d.skor}</div>
+      </li>`).join('') + '</ul>';
+}
+
+function hapusSkorLokal() {
+  if (confirm('Yakin hapus semua skor lokal di perangkat ini?')) {
+    localStorage.removeItem('molecuquest_lb');
+    renderLeaderboardLokal();
+    tampilToast('Skor lokal dihapus 🗑️');
+  }
+}
+
+// Escape HTML untuk keamanan (hindari XSS dari nama siswa)
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+/* ============================================
+   SETUP WIZARD FUNCTIONS
+   ============================================ */
+function tampilSetup() {
+  nextStep(1);
+  tampilLayar('screen-setup');
+}
+
+function nextStep(n) {
+  // Sembunyikan semua step, tampilkan step ke-n
+  [1,2,3,4].forEach(i => {
+    document.getElementById('step-'+i).style.display = i===n ? 'block' : 'none';
+    const dot = document.getElementById('sdot-'+i);
+    dot.classList.remove('aktif','selesai');
+    if (i < n)  dot.classList.add('selesai');
+    if (i === n) dot.classList.add('aktif');
+  });
+}
+
+function copyKode() {
+  const kode = document.getElementById('kode-script').textContent;
+  navigator.clipboard.writeText(kode).then(() => {
+    const btn = document.getElementById('btn-copy-kode');
+    btn.textContent = '✅ Copied!';
+    setTimeout(() => btn.textContent = '📋 Copy', 2000);
+  }).catch(() => tampilToast('Copy manual ya — select semua teks kode', ''));
+}
+
+function validasiUrl(val) {
+  const el = document.getElementById('url-validasi');
+  const btn = document.getElementById('btn-simpan-url');
+  el.style.display = 'block';
+  if (!val) { el.style.display='none'; btn.disabled=true; return; }
+  if (val.startsWith('https://script.google.com/macros/s/')) {
+    el.style.cssText = 'font-size:12px;margin-top:6px;padding:8px;border-radius:8px;background:#d1fae5;color:#065f46;display:block;';
+    el.textContent = '✅ URL valid! Klik Simpan & Aktifkan.';
+    btn.disabled = false;
+  } else {
+    el.style.cssText = 'font-size:12px;margin-top:6px;padding:8px;border-radius:8px;background:#fee2e2;color:#7f1d1d;display:block;';
+    el.textContent = '❌ URL tidak valid. Harus diawali: https://script.google.com/macros/s/';
+    btn.disabled = true;
+  }
+}
+
+function simpanUrlGsheet() {
+  const url = document.getElementById('input-gsheet-url').value.trim();
+  if (!url.startsWith('https://script.google.com/macros/s/')) return;
+  localStorage.setItem('molecuquest_gsheet_url', url);
+  tampilToast('✅ URL tersimpan! Papan skor online aktif.', 'hijau');
+  setTimeout(() => {
+    tampilLeaderboard();
+  }, 800);
+}
+
+
+
+</script>
+</body>
+</html>
